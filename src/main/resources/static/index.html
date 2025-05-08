@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+    <div class="search-section">
+        <input type="text" id="cityInput" placeholder="Search for weather by city">
+        <button onclick="fetchWeatherForSingleCity()">Search</button>
+        <button onclick="openComparePopup()">Compare Cities</button>
+        <button onclick="saveCity()">Save City</button>
+    </div>
+    <div class="display-section" id="weather-info">
+        <h2 id="location">Enter the city</h2>
+        <p id="date"></p>
+        <div class="weather-main">
+            <img id="weather-icon" src="" alt="Weather Icon">
+            <span id="temperature"></span>
+        </div>
+        <p id="weather-description"></p>
+        <div class="weather-details">
+            <p>Feels like: <span id="feels-like"></span></p>
+            <p>Humidity: <span id="humidity"></span></p>
+            <p>Wind: <span id="wind-speed"></span></p>
+        </div>
+    </div>
+    <div id="compare-container" class="compare-container"></div>
+    <div id="saved-cities" class="saved-cities"></div>
+    <div id="comparePopup" class="popup" onclick="closePopup()">
+        <div class="popup-content" onclick="event.stopPropagation()">
+            <h3>Compare Cities</h3>
+            <input type="text" id="firstCity" placeholder="First City">
+            <input type="text" id="secondCity" placeholder="Second City">
+            <button onclick="compareCities()">Compare</button>
+            <button onclick="closePopup()">Close</button>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const comparePopup = document.getElementById("comparePopup");
+        const compareContainer = document.getElementById("compare-container");
+        const savedCitiesContainer = document.getElementById("saved-cities");
+
+        // Fetch weather for a single city
+        function fetchWeatherForSingleCity() {
+            const city = document.getElementById("cityInput").value.trim();
+            if (!city) {
+                alert("Please enter a city name.");
+                return;
+            }
+            fetch(`/weather?city=${city}`)
+                .then(response => response.json())
+                .then(data => updateWeatherUI(data))
+                .catch(err => console.error("Error fetching weather:", err));
+        }
+
+        // Update UI with weather data
+        function updateWeatherUI(data) {
+            const weatherInfo = data.weather[0];
+            const mainInfo = data.main;
+            document.getElementById("location").innerText = data.name;
+            document.getElementById("date").innerText = new Date().toLocaleDateString();
+            document.getElementById("temperature").innerText = `${mainInfo.temp}°C`;
+            document.getElementById("weather-description").innerText = weatherInfo.description;
+            document.getElementById("feels-like").innerText = `${mainInfo.feels_like}°C`;
+            document.getElementById("humidity").innerText = `${mainInfo.humidity}%`;
+            document.getElementById("wind-speed").innerText = `${data.wind.speed} m/s`;
+            document.getElementById("weather-icon").src = `https://openweathermap.org/img/wn/${weatherInfo.icon}@2x.png`;
+        }
+
+        // Compare two cities
+        function compareCities() {
+            const city1 = document.getElementById("firstCity").value.trim();
+            const city2 = document.getElementById("secondCity").value.trim();
+            if (!city1 || !city2) {
+                alert("Please enter both cities.");
+                return;
+            }
+            fetch(`/compare?city1=${city1}&city2=${city2}`)
+                .then(response => response.text()) // Use text to debug the raw response
+                .then(text => {
+                    console.log(text);  // Log raw response for debugging
+                    const data = JSON.parse(text);  // Manually parse the response
+                    compareContainer.innerHTML = "";
+                    createWeatherCard(data.city1, "compare-card");
+                    createWeatherCard(data.city2, "compare-card");
+                    closePopup();
+                })
+                .catch(err => console.error("Error comparing cities:", err));
+        }
+
+        // Create weather card
+        function createWeatherCard(data, className) {
+            const weatherInfo = data.weather[0];
+            const mainInfo = data.main;
+            const card = document.createElement("div");
+            card.className = className;
+            card.innerHTML = `
+                <h3>${data.name}</h3>
+                <p>${new Date().toLocaleDateString()}</p>
+                <div class="weather-main">
+                    <img src="https://openweathermap.org/img/wn/${weatherInfo.icon}@2x.png" alt="Weather Icon">
+                    <span>${mainInfo.temp}°C</span>
+                </div>
+                <p>${weatherInfo.description}</p>
+                <div class="weather-details">
+                    <p>Feels like: ${mainInfo.feels_like}°C</p>
+                    <p>Humidity: ${mainInfo.humidity}%</p>
+                    <p>Wind: ${data.wind.speed} m/s</p>
+                </div>
+            `;
+            compareContainer.appendChild(card);
+        }
+
+        // Save a city
+        function saveCity() {
+            const city = document.getElementById("cityInput").value.trim();
+            if (!city) return;
+            fetch(`/weather?city=${city}`)
+                .then(response => response.json())
+                .then(data => createWeatherCard(data, "saved-card"))
+                .catch(err => console.error("Error saving city:", err));
+        }
+
+        // Popup handlers
+        window.fetchWeatherForSingleCity = fetchWeatherForSingleCity;
+        window.compareCities = compareCities;
+        window.saveCity = saveCity;
+        window.openComparePopup = () => comparePopup.style.display = "flex";
+        window.closePopup = () => comparePopup.style.display = "none";
+    });
+</script>
+</body>
+</html>
